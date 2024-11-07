@@ -5,3 +5,4 @@ build
 .mypy_cache
 .env
 credentials.json
+token.json

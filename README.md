@@ -10,39 +10,16 @@ user permissions.
 - pip v24.2 or [uv][] v0.4.29.
 - A [Pangea account][Pangea signup] with AuthN and AuthZ enabled.
 - An [OpenAI API key][OpenAI API keys].
-- A Google Drive folder containing spreadsheets. Note down the ID of the folder
-  for later (see [the LangChain docs][retrieve-the-google-docs] for a guide on
-  how to get the ID from the URL). Each spreadsheet should contain at least the
-  name of an employee and their PTO balance.
 - A Google Cloud project with the [Google Drive API][] and [Google Sheets API][]
   enabled.
-- A Google service account with the `"https://www.googleapis.com/auth/drive.readonly"`
-  scope.
-
-  - This service account needs to have Editor access to the Google Drive
-    folder, but it won't actually edit any files via this app. This role is
-    necessary for the account to query the access permissions of the files.
-  - Save the account's credentials as a JSON file (e.g. `credentials.json`). The
-    contents should look something like:
-
-  ```json
-  {
-    "type": "service_account",
-    "project_id": "my-project",
-    "private_key_id": "l3JYno7aIrRSZkAGFHSNPcjYS6lrpL1UnqbkWW1b",
-    "private_key": "-----BEGIN PRIVATE KEY-----\n[...]\n-----END PRIVATE KEY-----\n",
-    "client_email": "my-service-account@my-project.iam.gserviceaccount.com",
-    "client_id": "1234567890",
-    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-    "token_uri": "https://oauth2.googleapis.com/token",
-    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-service-account%40my-project.iam.gserviceaccount.com",
-    "universe_domain": "googleapis.com"
-  }
-  ```
-
-  Bonus: see [langchain-python-service-authn][] for an example of how to store
-  such a credential more securely in Pangea [Vault][] instead.
+- A Google Drive folder containing spreadsheets.
+  - Note down the ID of the folder for later (see [the LangChain docs][retrieve-the-google-docs]
+    for a guide on how to get the ID from the URL).
+  - Have one Google user with at least Editor access to the folder.
+  - Each spreadsheet should contain at least the name of an employee and their
+    PTO balance.
+  - Each employee account should have Reader access to their respective
+    spreadsheet.
 
 ## Setup
 
@@ -87,6 +64,10 @@ uv sync
 source .venv/bin/activate
 ```
 
+Then [authorize credentials for a desktop application][authorize-credentials-for-a-desktop-application].
+Save the downloaded JSON file as `credentials.json` and place it inside the
+`authz-rag-app` directory.
+
 ## Usage
 
 ```
@@ -95,8 +76,6 @@ Usage: python -m authz_rag_app [OPTIONS]
 Options:
   --google-drive-folder-id TEXT  The ID of the Google Drive folder to fetch
                                  documents from.  [required]
-  --google-credentials FILE      Path to a JSON file containing Google service
-                                 account credentials.  [required]
   --authn-client-token TEXT      Pangea AuthN Client API token. May also be
                                  set via the `PANGEA_AUTHN_CLIENT_TOKEN`
                                  environment variable.  [required]
@@ -125,37 +104,46 @@ Options:
     - `PANGEA_AUTHZ_TOKEN`
     - `OPENAI_API_KEY`
 
-2.  Run the app, passing the ID of the Google Drive folder that was set up
-    earlier (this sample uses a fake value) and the path to the JSON file
-    containing the Google service account's credentials:
+1.  Run the app, passing the ID of the Google Drive folder that was set up
+    earlier (this sample uses a fake value):
 
     ```bash
-    python -m authz_rag_app --google-drive-folder-id "1yucgL9WGgWZdM1TOuKkeghlPizuzMYb5" --google-credentials credentials.json
+    python -m authz_rag_app --google-drive-folder-id 1yucgL9WGgWZdM1TOuKkeghlPizuzMYb5
     ```
 
-3.  A new tab will open in the system's default web browser where one can perform
-    login via Google. The tab may be closed once the login flow is complete.
-4.  Then a chat prompt will appear:
+1.  A new tab will open in the system's default web browser where one can perform
+    login via Google. Log in as the user who has Editor access to the Google
+    Drive folder. The tab may be closed once the login flow is complete.
+1.  Another tab will open to login via Pangea AuthN. Select the
+    "Continue with Google" option and log in again. The Google user selected here
+    does not need to be the same as the one used in the previous step, but if
+    that user is picked then all documents will be available in the subsequent
+    steps, which would not illustrate any access control. Instead, choose one of
+    the accounts that only has Reader access to their own PTO spreadsheet.
+    Again, the tab may be closed once the login flow is complete.
+1.  Then a chat prompt will appear:
 
     ```
     Ask a question about PTO availability:
     ```
 
-5.  Whoever logged in during step 3 can ask about their PTO balance. For example,
-    if Alice has 21 days remaining according to their Google Sheet, and they logged
-    in above, they might do:
+1.  Whoever logged in during step 4 can ask about their PTO balance. For
+    example, if Alice has 21 days remaining according to their Google Sheet, and
+    they logged in above, they might do:
 
     ```
     Ask a question about PTO availability: How many PTO days do I have left?
     You have 21 PTO days left.
     ```
 
-6.  But if they try to ask for another employee's balance, like Bob's, the answer
-    will not be disclosed:
+1.  But if they try to ask for another employee's balance, like Bob's, the
+    answer will not be disclosed:
 
     ```
     Ask a question about PTO availability: How much PTO does Bob have left?
-    I could not find any information regarding Bob's PTO balance in the available documents.
+    The context does not provide information about Bob's Paid Time Off (PTO)
+    balance. Therefore, I cannot determine how much PTO Bob has left. You may
+    not be authorized to know the answer.
     ```
 
 [AuthN]: https://pangea.cloud/docs/authn/
@@ -169,3 +157,4 @@ Options:
 [Google Drive API]: https://console.cloud.google.com/flows/enableapi?apiid=drive.googleapis.com
 [Google Sheets API]: https://console.cloud.google.com/flows/enableapi?apiid=sheets.googleapis.com
 [retrieve-the-google-docs]: https://python.langchain.com/docs/integrations/retrievers/google_drive/#retrieve-the-google-docs
+[authorize-credentials-for-a-desktop-application]: https://developers.google.com/drive/api/quickstart/python#authorize_credentials_for_a_desktop_application

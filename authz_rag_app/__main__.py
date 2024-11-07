@@ -1,43 +1,45 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, override
 
 import click
 from dotenv import load_dotenv
-from google.auth.credentials import TokenState
-from google.auth.transport.requests import Request
-from google.oauth2 import service_account
-from langchain.agents import AgentExecutor, create_react_agent
-from langchain.prompts import PromptTemplate
-from langchain_googledrive.tools.google_drive.tool import GoogleDriveSearchTool  # type: ignore[import-untyped]
-from langchain_openai import ChatOpenAI
+from googleapiclient.discovery import Resource as GoogleResource  # type: ignore[import-untyped]
+from googleapiclient.discovery import build
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_community.vectorstores import FAISS
+from langchain_core.prompts.chat import ChatPromptTemplate
+from langchain_googledrive.retrievers import GoogleDriveRetriever  # type: ignore[import-untyped]
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from pangea import PangeaConfig
+from pangea.services import AuthZ
+from pangea.services.authz import Resource, Subject, Tuple
 from pydantic import SecretStr
 
 from authz_rag_app.auth_server import prompt_authn
-from authz_rag_app.authz_google_drive import PangeaAuthZGoogleDriveAPIWrapper
+from authz_rag_app.authz_retriever import AuthzRetriever
 
 load_dotenv(override=True)
 
-PROMPT = PromptTemplate.from_template(
-    """Answer the following questions about PTO availability as best you can. You have access to the following tools:
+GDRIVE_ROLE_TO_AUTHZ_ROLE = {
+    "owner": "owner",
+    "reader": "reader",
+    "writer": "editor",
+}
+"""Map Google Drive roles to AuthZ File Drive schema roles."""
 
-{tools}
-
-Use the following format:
-
-Question: the input question you must answer
-Thought: you should always think about what to do
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question
-
-Begin!
-
+PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "human",
+            """You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that the user may not be authorized to know the answer. Use three sentences maximum and keep the answer concise.
 Question: {input}
-Thought:{agent_scratchpad}"""
+Context: {context}
+Answer:""",
+        ),
+    ]
 )
 
 
@@ -61,12 +63,6 @@ SECRET_STR = SecretStrParamType()
     type=str,
     required=True,
     help="The ID of the Google Drive folder to fetch documents from.",
-)
-@click.option(
-    "--google-credentials",
-    type=click.Path(exists=True, dir_okay=False),
-    required=True,
-    help="Path to a JSON file containing Google service account credentials.",
 )
 @click.option(
     "--authn-client-token",
@@ -108,7 +104,6 @@ SECRET_STR = SecretStrParamType()
 def main(
     *,
     google_drive_folder_id: str,
-    google_credentials: str,
     authn_client_token: str,
     authn_hosted_login: str,
     authz_token: SecretStr,
@@ -116,43 +111,63 @@ def main(
     model: str,
     openai_api_key: SecretStr,
 ) -> None:
-    # Authenticate with Google Drive.
-    parsed_gdrive_cred = service_account.Credentials.from_service_account_file(
-        google_credentials, scopes=["https://www.googleapis.com/auth/drive.readonly"]
+    # Ingest documents from Google Drive.
+    retriever = GoogleDriveRetriever(
+        folder_id=google_drive_folder_id,
+        gdrive_api_file=Path("credentials.json"),
+        gsheet_mode="elements",
+        mode="documents",
+        num_results=-1,
+        scopes=["https://www.googleapis.com/auth/drive.readonly"],
+        template="gdrive-all-in-folder",
     )
-    parsed_gdrive_cred.refresh(Request())
-    assert parsed_gdrive_cred.token_state == TokenState.FRESH
+    sheets = retriever.invoke("")  # Fetch all documents.
+
+    # Set up permissions.
+    authz = AuthZ(token=authz_token.get_secret_value(), config=PangeaConfig(domain=pangea_domain))
+    permissions: GoogleResource = build("drive", "v3", credentials=retriever.credentials).permissions()
+    authz.tuple_create(
+        [
+            Tuple(
+                subject=Subject(type="user", id=permission["emailAddress"]),
+                relation=GDRIVE_ROLE_TO_AUTHZ_ROLE[permission["role"]],
+                resource=Resource(type="file", id=sheet.metadata["id"]),
+            )
+            for sheet in sheets
+            for permission in permissions.list(fileId=sheet.metadata["id"], fields="permissions(emailAddress, role)")
+            .execute()
+            .get("permissions", [])
+            if "emailAddress" in permission
+        ]
+    )
 
     # Login via Pangea AuthN.
     check_result = prompt_authn(
         authn_client_token=authn_client_token, authn_hosted_login=authn_hosted_login, pangea_domain=pangea_domain
     )
+    click.echo()
     click.echo(f"Authenticated as {check_result.owner} ({check_result.identity}).")  # type: ignore[attr-defined]
     click.echo()
 
-    # Set up Pangea AuthZ + Google Drive tool.
-    google_drive = GoogleDriveSearchTool(
-        api_wrapper=PangeaAuthZGoogleDriveAPIWrapper(
-            user_id=check_result.owner,  # type: ignore[attr-defined]
-            token=authz_token,
-            domain=pangea_domain,
-            credentials=parsed_gdrive_cred,
-            folder_id=google_drive_folder_id,
-            gsheet_mode="elements",
-            mode="documents",
-            num_results=-1,
-            template="gdrive-all-in-folder",
-        )
+    # Set up vector store.
+    embeddings_model = OpenAIEmbeddings(api_key=openai_api_key)
+    vectorstore = FAISS.from_documents(documents=sheets, embedding=embeddings_model)
+    retriever = AuthzRetriever(
+        vectorstore=vectorstore,
+        username=check_result.owner,  # type: ignore[attr-defined]
+        token=authz_token,
+        domain=pangea_domain,
     )
-    tools = [google_drive]
-    llm = ChatOpenAI(model=model, api_key=openai_api_key, temperature=0)
-    agent = create_react_agent(tools=tools, llm=llm, prompt=PROMPT)
-    agent_executor = AgentExecutor(agent=agent, tools=tools)
+
+    # Set up chain.
+    llm = ChatOpenAI(model=model, temperature=0.1, api_key=openai_api_key)
+    qa_chain = create_stuff_documents_chain(llm, PROMPT)
+    rag_chain = create_retrieval_chain(retriever, qa_chain)
 
     # Prompt loop.
     while True:
         prompt = click.prompt("Ask a question about PTO availability", type=str)
-        click.echo(agent_executor.invoke({"input": prompt})["output"])
+        click.echo(rag_chain.invoke({"input": prompt})["answer"])
         click.echo()
 
 
