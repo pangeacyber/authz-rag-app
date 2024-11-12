@@ -10,31 +10,55 @@ user permissions.
 - pip v24.2 or [uv][] v0.4.29.
 - A [Pangea account][Pangea signup] with AuthN and AuthZ enabled.
 - An [OpenAI API key][OpenAI API keys].
-- A Google Cloud project with the [Google Drive API][] and [Google Sheets API][]
-  enabled.
 - A Google Drive folder containing spreadsheets
 
   - Note down the ID of the folder for later (see [the LangChain docs][retrieve-the-google-docs]
     for a guide on how to get the ID from the URL).
-  - Each spreadsheet should be named after a user and have two rows (examples below)
+  - Each spreadsheet should be named after a user and have two rows. For example:
+
+    Alice PTO
+
+    | Employee | Hours |
+    | -------- | ----- |
+    | Alice    | 25    |
+
+    Bob PTO
+
+    | Employee | Hours |
+    | -------- | ----- |
+    | Bob      | 100   |
 
 - Two Google Identities (i.e. Alice and Bob)
   - One user (i.e. Alice) will act as the admin and own the folder and have full
     access to all spreadsheets within
   - The other user (i.e. Bob) will act as an employee with read access to the
     folder and their single spreadsheet
+- A Google Cloud project with the [Google Drive API][] and [Google Sheets API][] enabled.
+- A Google service account:
+  1. In your Google Cloud project, go to IAM & Admin > Service Accounts (using the navigation menu in the top left) and create a new service account.
+  2. On the service accounts page, select your new service account, click KEYS, and add a new key. Save the key as `credentials.json` in your Python app folder.
 
-Alice PTO
+      Your `credentials.json` file should look similar to this:
 
-| Employee | Hours |
-| -------- | ----- |
-| Alice    | 25    |
+      ```json
+      {
+        "type": "service_account",
+        "project_id": "my-project",
+        "private_key_id": "l3JYno7aIrRSZkAGFHSNPcjYS6lrpL1UnqbkWW1b",
+        "private_key": "-----BEGIN PRIVATE KEY-----\n[...]\n-----END PRIVATE KEY-----\n",
+        "client_email": "my-service-account@my-project.iam.gserviceaccount.com",
+        "client_id": "1234567890",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-service-account%40my-project.iam.gserviceaccount.com",
+        "universe_domain": "googleapis.com"
+      }
+      ```
 
-Bob PTO
+  3. Share the Google Drive folder with the service account’s email, granting it Editor access so it can query file permissions as needed.
 
-| Employee | Hours |
-| -------- | ----- |
-| Bob      | 100   |
+  Bonus: see [langchain-python-service-authn][] for an example of how to store such a credential more securely in Pangea [Vault][] instead.
 
 ## Setup
 
@@ -78,10 +102,6 @@ Or, if using uv:
 uv sync
 source .venv/bin/activate
 ```
-
-Then [authorize credentials for a desktop application][authorize-credentials-for-a-desktop-application].
-Save the downloaded JSON file as `credentials.json` and place it inside the
-`authz-rag-app` directory.
 
 ## Usage
 
@@ -181,4 +201,3 @@ Options:
 [Google Drive API]: https://console.cloud.google.com/flows/enableapi?apiid=drive.googleapis.com
 [Google Sheets API]: https://console.cloud.google.com/flows/enableapi?apiid=sheets.googleapis.com
 [retrieve-the-google-docs]: https://python.langchain.com/docs/integrations/retrievers/google_drive/#retrieve-the-google-docs
-[authorize-credentials-for-a-desktop-application]: https://developers.google.com/drive/api/quickstart/python#authorize_credentials_for_a_desktop_application

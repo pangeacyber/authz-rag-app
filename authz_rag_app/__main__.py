@@ -17,6 +17,7 @@ from pangea import PangeaConfig
 from pangea.services import AuthZ
 from pangea.services.authz import Resource, Subject, Tuple
 from pydantic import SecretStr
+from google.oauth2 import service_account
 
 from authz_rag_app.auth_server import prompt_authn
 from authz_rag_app.authz_retriever import AuthzRetriever
@@ -111,10 +112,16 @@ def main(
     model: str,
     openai_api_key: SecretStr,
 ) -> None:
+    # Access Google Drive using a service account.
+    credentials = service_account.Credentials.from_service_account_file(
+        "credentials.json",
+        scopes=["https://www.googleapis.com/auth/drive.readonly"]
+    )
+
     # Ingest documents from Google Drive.
     retriever = GoogleDriveRetriever(
         folder_id=google_drive_folder_id,
-        gdrive_api_file=Path("credentials.json"),
+        credentials=credentials,
         gsheet_mode="elements",
         mode="documents",
         num_results=-1,
