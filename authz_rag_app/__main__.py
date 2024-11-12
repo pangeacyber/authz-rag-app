@@ -123,6 +123,10 @@ def main(
     )
     sheets = retriever.invoke("")  # Fetch all documents.
 
+    if len(sheets) == 0:
+        click.echo("No documents found in the Google Drive folder.")
+        return
+
     # Set up permissions.
     authz = AuthZ(token=authz_token.get_secret_value(), config=PangeaConfig(domain=pangea_domain))
     permissions: GoogleResource = build("drive", "v3", credentials=retriever.credentials).permissions()
