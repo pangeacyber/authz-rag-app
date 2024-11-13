@@ -13,26 +13,28 @@ user permissions.
 - A Google Cloud project with the [Google Drive API][] and [Google Sheets API][]
   enabled.
 - A Google Drive folder containing spreadsheets
+
   - Note down the ID of the folder for later (see [the LangChain docs][retrieve-the-google-docs]
     for a guide on how to get the ID from the URL).
-  - Each spreadsheet should be named after a user and have a two rows (examples below)
+  - Each spreadsheet should be named after a user and have two rows (examples below)
 
-- Two Google Identities (ie. Alice and Bob)
-  - One user (ie Alice) will act as the admin and own the folder and have full access to all spreadsheets within
-  - The other user (ie Bob) will act as an employee with read access to the folder and their single spreadsheet
+- Two Google Identities (i.e. Alice and Bob)
+  - One user (i.e. Alice) will act as the admin and own the folder and have full
+    access to all spreadsheets within
+  - The other user (i.e. Bob) will act as an employee with read access to the
+    folder and their single spreadsheet
 
 Alice PTO
 
-| Employee    | Hours |
-| -------- | ------- |
-| Alice  | 25    |
+| Employee | Hours |
+| -------- | ----- |
+| Alice    | 25    |
 
 Bob PTO
 
-| Employee    | Hours |
-| -------- | ------- |
-| Bob  | 100    |
-
+| Employee | Hours |
+| -------- | ----- |
+| Bob      | 100   |
 
 ## Setup
 
@@ -161,9 +163,11 @@ Options:
 
 ## Cleanup & Debugging
 
-- After login, the Google token is stored in `token.json`. If you encounter "access denied" errors, delete `token.json` before you try again.
-- The file authorization policy is cached in Pangea AuthZ. If you change your Google Drive folder or create new files, visit [Pangea AuthZ Settings][Pangea AuthZ Settings] to reset your authorization schema.
-
+- After login, the Google token is stored in `token.json`. If you encounter
+  "access denied" errors, delete `token.json` before you try again.
+- The file authorization policy is cached in Pangea AuthZ. If you change your
+  Google Drive folder or create new files, visit [Pangea AuthZ Settings][] to
+  reset your authorization schema.
 
 [AuthN]: https://pangea.cloud/docs/authn/
 [AuthZ]: https://pangea.cloud/docs/authz/
