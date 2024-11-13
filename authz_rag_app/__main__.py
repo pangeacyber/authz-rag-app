@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, override
 
 import click
 from dotenv import load_dotenv
+from google.oauth2 import service_account
 from googleapiclient.discovery import Resource as GoogleResource  # type: ignore[import-untyped]
 from googleapiclient.discovery import build
 from langchain.chains import create_retrieval_chain
@@ -17,7 +17,6 @@ from pangea import PangeaConfig
 from pangea.services import AuthZ
 from pangea.services.authz import Resource, Subject, Tuple
 from pydantic import SecretStr
-from google.oauth2 import service_account
 
 from authz_rag_app.auth_server import prompt_authn
 from authz_rag_app.authz_retriever import AuthzRetriever
@@ -37,6 +36,8 @@ PROMPT = ChatPromptTemplate.from_messages(
             "human",
             """You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that the user may not be authorized to know the answer. Use three sentences maximum and keep the answer concise.
 Question: {input}
+User's first name: {first_name}
+User's last name: {last_name}
 Context: {context}
 Answer:""",
         ),
@@ -114,8 +115,7 @@ def main(
 ) -> None:
     # Access Google Drive using a service account.
     credentials = service_account.Credentials.from_service_account_file(
-        "credentials.json",
-        scopes=["https://www.googleapis.com/auth/drive.readonly"]
+        "credentials.json", scopes=["https://www.googleapis.com/auth/drive.readonly"]
     )
 
     # Ingest documents from Google Drive.
@@ -178,7 +178,15 @@ def main(
     # Prompt loop.
     while True:
         prompt = click.prompt("Ask a question about PTO availability", type=str)
-        click.echo(rag_chain.invoke({"input": prompt})["answer"])
+        click.echo(
+            rag_chain.invoke(
+                {
+                    "first_name": check_result.profile["first_name"],
+                    "last_name": check_result.profile["last_name"],
+                    "input": prompt,
+                }
+            )["answer"]
+        )
         click.echo()
 
 
