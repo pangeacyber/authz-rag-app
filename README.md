@@ -35,26 +35,27 @@ user permissions.
     folder and their single spreadsheet
 - A Google Cloud project with the [Google Drive API][] and [Google Sheets API][] enabled.
 - A Google service account:
+
   1. In your Google Cloud project, go to IAM & Admin > Service Accounts (using the navigation menu in the top left) and create a new service account.
   2. On the service accounts page, select your new service account, click KEYS, and add a new key. Save the key as `credentials.json` in your Python app folder.
 
-      Your `credentials.json` file should look similar to this:
+     Your `credentials.json` file should look similar to this:
 
-      ```json
-      {
-        "type": "service_account",
-        "project_id": "my-project",
-        "private_key_id": "l3JYno7aIrRSZkAGFHSNPcjYS6lrpL1UnqbkWW1b",
-        "private_key": "-----BEGIN PRIVATE KEY-----\n[...]\n-----END PRIVATE KEY-----\n",
-        "client_email": "my-service-account@my-project.iam.gserviceaccount.com",
-        "client_id": "1234567890",
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-service-account%40my-project.iam.gserviceaccount.com",
-        "universe_domain": "googleapis.com"
-      }
-      ```
+     ```json
+     {
+       "type": "service_account",
+       "project_id": "my-project",
+       "private_key_id": "l3JYno7aIrRSZkAGFHSNPcjYS6lrpL1UnqbkWW1b",
+       "private_key": "-----BEGIN PRIVATE KEY-----\n[...]\n-----END PRIVATE KEY-----\n",
+       "client_email": "my-service-account@my-project.iam.gserviceaccount.com",
+       "client_id": "1234567890",
+       "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+       "token_uri": "https://oauth2.googleapis.com/token",
+       "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+       "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-service-account%40my-project.iam.gserviceaccount.com",
+       "universe_domain": "googleapis.com"
+     }
+     ```
 
   3. Share the Google Drive folder with the service account’s email, granting it Editor access so it can query file permissions as needed.
 
@@ -194,7 +195,7 @@ Options:
 [Pangea AuthZ Settings]: https://console.pangea.cloud/service/authz/settings
 [Vault]: https://pangea.cloud/docs/vault/
 [Pangea signup]: https://pangea.cloud/signup
-[reset-authorization-schema]: https://dev.pangea.cloud/docs/authz/general#reset-authorization-schema
+[reset-authorization-schema]: https://pangea.cloud/docs/authz/general#reset-authorization-schema
 [langchain-python-service-authn]: https://github.com/pangeacyber/langchain-python-service-authn
 [OpenAI API keys]: https://platform.openai.com/api-keys
 [uv]: https://docs.astral.sh/uv/
