@@ -14,7 +14,7 @@ dependencies = [
     "langchain-googledrive>=0.3.35",
     "langchain-openai>=0.3.11",
     "pangea-sdk>=5.5.1",
-    "pydantic>=2.11.0",
+    "pydantic>=2.11.1",
     "python-dotenv>=1.1.0",
 ]
 
