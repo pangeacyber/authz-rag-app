@@ -138,7 +138,7 @@ requires-dist = [
     { name = "faiss-cpu", specifier = ">=1.10.0" },
     { name = "flask", specifier = ">=3.1.0" },
     { name = "google", specifier = ">=3.0.0" },
-    { name = "langchain", specifier = ">=0.3.22" },
+    { name = "langchain", specifier = ">=0.3.23" },
     { name = "langchain-googledrive", specifier = ">=0.3.35" },
     { name = "langchain-openai", specifier = ">=0.3.12" },
     { name = "pangea-sdk", specifier = ">=5.5.1" },
